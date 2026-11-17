@@ -26,7 +26,7 @@ Click any box to light up everything it depends on and everything that depends o
 
 ![Clicking boxes highlights their lineage](images/lineage.gif)
 
-Select a model, then enable **Hide unrelated** to show only its lineage. Set **Upstream** and **Downstream** independently: `1` shows direct neighbours, `2` includes the next level, and `0` excludes that direction. Leave a depth field empty for all levels. These limits also apply to highlighting. Search still finds hidden models; press Enter to focus a new selection. Clear the selection with Esc to show the full graph. **Rearrange on update** (enabled by default) lays out only the visible models and fits them to the canvas whenever the selection, depth, graph or flow direction changes. Turn it off to restore the saved layout. Filtering and automatic rearrangement do not change model files or the saved layout.
+Select a model, then enable **Hide unrelated** to show only its lineage. Set **Upstream** and **Downstream** independently: `1` shows direct neighbours, `2` includes the next level, and `0` excludes that direction. Leave a depth field empty for all levels. These limits also apply to highlighting. Search still finds hidden models; press Enter to focus a new selection. Clear the selection with Esc to show the full graph. Turn on **Rearrange on update** (off by default) to lay out only the visible models and fit them to the canvas whenever the selection, depth, graph or flow direction changes; together with **Hide unrelated** this gives a compact view of just that lineage. Turn it off to see your saved layout again. Filtering and automatic rearrangement do not change model files or the saved layout.
 
 ## Sketch a model, get the file
 
@@ -294,6 +294,8 @@ npm test      # model, extension, dbt and integration tests (node --test)
 `src/` holds the logic (parsing, layout, SQL edits, undo, dbt commands) with no VS Code imports, so it is tested directly. `extension.js` wires it to VS Code, and `media/` is the canvas. Optional tools such as DAGtracer plug in under `src/integrations/`.
 
 The pictures in this README are recorded from the real canvas with `node scripts/readme-media/record.js` (needs Playwright with Chromium, and ffmpeg).
+
+Contributions are welcome: new work goes to the `dev` branch. See [CONTRIBUTING.md](CONTRIBUTING.md) for how to run it, the branches, tests and what NodeViz promises its users.
 
 ---
 

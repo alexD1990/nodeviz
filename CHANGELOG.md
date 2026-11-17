@@ -4,7 +4,7 @@
 
 - **Hide unrelated models.** Show only the selected model and its lineage. Search can still select hidden models.
 - **Upstream and downstream depth.** Set each direction independently: `0` excludes it, `1` includes direct neighbors, and an empty field includes all levels. Depth limits also apply to highlighting.
-- **Rearrange on update.** Enabled by default, this option arranges only visible models and connections when the selection, depth, graph, or flow direction changes. Disable it to restore saved positions.
+- **Rearrange on update.** Off by default. When on, it arranges only the visible models and connections when the selection, depth, graph, or flow direction changes; most useful together with *Hide unrelated*, which then shows a small, tidy graph of just that lineage. Turn it off to see your saved positions again.
 - Fit-to-view and the minimap follow the visible graph. The canvas remembers filter, depth, and rearrangement preferences.
 - Column tracing temporarily pauses lineage filtering and automatic rearrangement so the complete trace remains visible.
 - Fixed invisible connections in straight horizontal or vertical layouts.

@@ -133,7 +133,9 @@
   const validDepth = (v) => Number.isSafeInteger(v) && v >= 0 ? v : null;
   let upstreamDepth = validDepth(saved.upstreamDepth);
   let downstreamDepth = validDepth(saved.downstreamDepth);
-  let rearrangeOnUpdate = saved.rearrangeOnUpdate !== false;
+  // Off unless turned on: when on, the saved layout is not shown, moves are not saved
+  // and every selection change fits the whole graph again.
+  let rearrangeOnUpdate = saved.rearrangeOnUpdate === true;
   let layoutKey = null;
   let layoutApplied = false;
   let visibleIds = null;
