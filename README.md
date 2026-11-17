@@ -26,6 +26,8 @@ Click any box to light up everything it depends on and everything that depends o
 
 ![Clicking boxes highlights their lineage](images/lineage.gif)
 
+Select a model, then enable **Hide unrelated** to show only its lineage. Set **Upstream** and **Downstream** independently: `1` shows direct neighbours, `2` includes the next level, and `0` excludes that direction. Leave a depth field empty for all levels. These limits also apply to highlighting. Search still finds hidden models; press Enter to focus a new selection. Clear the selection with Esc to show the full graph. **Rearrange on update** (enabled by default) lays out only the visible models and fits them to the canvas whenever the selection, depth, graph or flow direction changes. Turn it off to restore the saved layout. Filtering and automatic rearrangement do not change model files or the saved layout.
+
 ## Sketch a model, get the file
 
 Right-click the canvas to add a box, drag from one box to another to connect them, and choose **Create file**. NodeViz writes the `.sql` file with one import CTE per upstream model, ready for you to fill in.
@@ -50,7 +52,7 @@ Right-click a box, choose **Trace column…** and pick a column. NodeViz shows w
 
 ![Tracing where the region column stops](images/trace.gif)
 
-Column tracing uses [DAGtracer](#column-tracing-with-dagtracer) (`dgt`), an optional companion tool.
+Column tracing uses [DAGtracer](https://github.com/alexD1990/DAGtracer) (`dgt`), an optional companion tool.
 
 ## And the things you would expect
 

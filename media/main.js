@@ -61,6 +61,13 @@
       <span class="spacer"></span>
       <button class="primary" id="btn-create-all" hidden></button>
     </header>
+    <section class="lineage-controls" aria-label="Lineage view">
+      <label class="lineage-toggle"><input id="hide-unrelated" type="checkbox"> Hide unrelated</label>
+      <label>Upstream <input id="upstream-depth" type="number" min="0" step="1" placeholder="All" aria-label="Upstream depth" title="Number of upstream levels. Empty means all; 0 means none."></label>
+      <label>Downstream <input id="downstream-depth" type="number" min="0" step="1" placeholder="All" aria-label="Downstream depth" title="Number of downstream levels. Empty means all; 0 means none."></label>
+      <label><input id="rearrange-on-update" type="checkbox"> Rearrange on update</label>
+      <span id="lineage-status" role="status" aria-live="polite">Select a model to focus its lineage</span>
+    </section>
     <div class="banner" id="banner" hidden></div>
     <main class="viewport" id="viewport" tabindex="0" aria-label="Model canvas">
       <div class="world" id="world">
@@ -122,6 +129,14 @@
   let t = saved.t || { x: 0, y: 0, k: 1 };
   const hadSavedView = !!saved.t;
   let selected = saved.selected || null;
+  let hideUnrelated = saved.hideUnrelated === true;
+  const validDepth = (v) => Number.isSafeInteger(v) && v >= 0 ? v : null;
+  let upstreamDepth = validDepth(saved.upstreamDepth);
+  let downstreamDepth = validDepth(saved.downstreamDepth);
+  let rearrangeOnUpdate = saved.rearrangeOnUpdate !== false;
+  let layoutKey = null;
+  let layoutApplied = false;
+  let visibleIds = null;
   let activeId = null;
   let query = '';
   let colors = new Map();
@@ -135,7 +150,7 @@
   // dbt commands the extension can type into its terminal; sent once on 'ready' (src/dbtrun.js).
   let dbtCommands = { project: [], box: {} };
 
-  const persist = () => vscode.setState({ t, selected });
+  const persist = () => vscode.setState({ t, selected, hideUnrelated, upstreamDepth, downstreamDepth, rearrangeOnUpdate });
   const post = (msg) => vscode.postMessage(msg);
 
   // ------------------------------------------------------------------ helpers
@@ -197,7 +212,8 @@
 
   function bounds() {
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    for (const p of pos.values()) {
+    for (const [id, p] of pos) {
+      if (visibleIds && !visibleIds.has(id)) continue;
       minX = Math.min(minX, p.x);
       minY = Math.min(minY, p.y);
       maxX = Math.max(maxX, p.x + W);
@@ -284,6 +300,7 @@
   }
 
   function render() {
+    layoutKey = null;
     pos.clear();
     for (const n of view.nodes) pos.set(n.id, { x: n.x, y: n.y });
 
@@ -541,6 +558,7 @@
 
     ctx.lineWidth = 1;
     for (const n of view.nodes) {
+      if (visibleIds && !visibleIds.has(n.id)) continue;
       const p = pos.get(n.id);
       const c = colorOf(n);
       const x = p.x * s + ox;
@@ -601,24 +619,58 @@
   // ------------------------------------------------------------------ highlight
 
   function lineage(id) {
-    const up = new Set();
-    const down = new Set();
-    const walk = (start, set, forward) => {
-      const stack = [start];
-      while (stack.length) {
-        const cur = stack.pop();
-        for (const e of view.edges) {
-          const [a, b] = forward ? [e.from, e.to] : [e.to, e.from];
-          if (a === cur && !set.has(b)) {
-            set.add(b);
-            stack.push(b);
-          }
+    // Breadth-first traversal counts the shortest path, even with diamonds or cycles.
+    const up = new Map();
+    const down = new Map();
+    for (const { from, to } of view.edges) {
+      if (!up.has(to)) up.set(to, []);
+      if (!down.has(from)) down.set(from, []);
+      up.get(to).push(from);
+      down.get(from).push(to);
+    }
+    const walk = (adj, limit) => {
+      const seen = new Set([id]);
+      const queue = [[id, 0]];
+      for (let i = 0; i < queue.length; i++) {
+        const [cur, depth] = queue[i];
+        if (limit !== null && depth >= limit) continue;
+        for (const next of adj.get(cur) || []) {
+          if (seen.has(next)) continue;
+          seen.add(next);
+          queue.push([next, depth + 1]);
         }
       }
+      seen.delete(id);
+      return seen;
     };
-    walk(id, up, false);
-    walk(id, down, true);
-    return { up, down };
+    return { up: walk(up, upstreamDepth), down: walk(down, downstreamDepth) };
+  }
+
+  function updateVisibleLayout() {
+    const enabled = rearrangeOnUpdate && !overlayActive;
+    const nodes = view.nodes.filter(n => !visibleIds || visibleIds.has(n.id));
+    const edges = view.edges.filter(e => !visibleIds || (visibleIds.has(e.from) && visibleIds.has(e.to)));
+    const key = JSON.stringify([enabled, selected, upstreamDepth, downstreamDepth, view.direction,
+      nodes.map(n => n.id), edges.map(e => [e.from, e.to])]);
+    if (key === layoutKey) return false;
+    layoutKey = key;
+    if (!enabled && !layoutApplied) return false;
+    const positions = enabled
+      ? window.NodeVizLayout.layeredLayout(nodes.map(n => n.id), edges, undefined, undefined, view.direction)
+      : null;
+    for (const n of view.nodes) {
+      const p = positions && positions[n.id] ? positions[n.id] : { x: n.x, y: n.y };
+      pos.set(n.id, p);
+      nodeEls.get(n.id).style.transform = `translate(${p.x}px, ${p.y}px)`;
+    }
+    layoutApplied = enabled;
+    // A straight horizontal/vertical chain has a zero-area SVG filter box.
+    // Draw it without glow so its connections remain visible.
+    const points = nodes.map(n => pos.get(n.id));
+    const hasArea = new Set(points.map(p => p.x)).size > 1 && new Set(points.map(p => p.y)).size > 1;
+    edgeLayer.setAttribute('filter', edges.length <= MAX_GLOW_EDGES && hasArea ? 'url(#glow)' : '');
+    updateEdges();
+    return true;
   }
 
   function applyHighlight() {
@@ -631,7 +683,9 @@
       lin = lineage(selected);
       focus = new Set([selected, ...lin.up, ...lin.down]);
     }
+    visibleIds = hideUnrelated && focus ? focus : null;
     for (const [id, node] of nodeEls) {
+      node.hidden = !!visibleIds && !visibleIds.has(id);
       const match = q && id.toLowerCase().includes(q);
       node.classList.toggle('selected', id === selected);
       node.classList.toggle('active', id === activeId);
@@ -642,10 +696,18 @@
     const downSet = lin ? new Set([selected, ...lin.down]) : null;
     for (const { e, g } of edgeEls) {
       const hl = !!lin && ((upSet.has(e.from) && upSet.has(e.to)) || (downSet.has(e.from) && downSet.has(e.to)));
+      g.style.display = visibleIds && (!visibleIds.has(e.from) || !visibleIds.has(e.to)) ? 'none' : '';
       g.classList.toggle('hl', hl);
       g.classList.toggle('dim', (lin && !hl) || !!q);
     }
+    const layoutChanged = updateVisibleLayout();
+    $('lineage-status').textContent = overlayActive
+      ? 'Lineage filter paused during column trace'
+      : selected ? `${visibleIds ? visibleIds.size : view.nodes.length} of ${view.nodes.length} models shown`
+      : 'Select a model to focus its lineage';
     updateDeleteButton();
+    if (layoutChanged) fit();
+    else drawMinimap();
     persist();
   }
 
@@ -841,7 +903,7 @@
       nodeEl.classList.add('source');
     } else if (e.button === 0 && nodeEl) {
       const n = nodeById(nodeEl.dataset.id);
-      drag = { mode: 'node', id: n.id, sx: e.clientX, sy: e.clientY, ox: n.x, oy: n.y, moved: false };
+      drag = { mode: 'node', id: n.id, sx: e.clientX, sy: e.clientY, ox: pos.get(n.id).x, oy: pos.get(n.id).y, moved: false };
     } else if (e.button === 0 || e.button === 1) {
       drag = { mode: 'pan', sx: e.clientX, sy: e.clientY, ox: t.x, oy: t.y, moved: false };
       viewport.classList.add('panning');
@@ -903,7 +965,7 @@
       } else {
         const p = pos.get(d.id);
         const n = nodeById(d.id);
-        if (n && (p.x !== n.x || p.y !== n.y)) {
+        if (!layoutApplied && n && (p.x !== n.x || p.y !== n.y)) {
           n.x = p.x;
           n.y = p.y;
           post({ type: 'move', id: d.id, x: p.x, y: p.y });
@@ -1039,6 +1101,34 @@
   $('zoom').addEventListener('click', () => zoomCenter(1));
   $('btn-create-all').addEventListener('click', () => post({ type: 'createAll' }));
   $('project').addEventListener('click', () => post({ type: 'selectProject' }));
+
+  $('rearrange-on-update').checked = rearrangeOnUpdate;
+  $('rearrange-on-update').addEventListener('change', () => {
+    rearrangeOnUpdate = $('rearrange-on-update').checked;
+    applyHighlight();
+  });
+  $('hide-unrelated').checked = hideUnrelated;
+  $('upstream-depth').value = upstreamDepth ?? '';
+  $('downstream-depth').value = downstreamDepth ?? '';
+  $('hide-unrelated').addEventListener('change', () => {
+    hideUnrelated = $('hide-unrelated').checked;
+    applyHighlight();
+    if (selected) fit();
+  });
+  for (const direction of ['upstream', 'downstream']) {
+    const input = $(direction + '-depth');
+    input.addEventListener('change', () => {
+      if (!input.validity.valid || (input.value !== '' && !Number.isSafeInteger(input.valueAsNumber))) {
+        input.value = (direction === 'upstream' ? upstreamDepth : downstreamDepth) ?? '';
+        return;
+      }
+      const depth = input.value === '' ? null : input.valueAsNumber;
+      if (direction === 'upstream') upstreamDepth = depth;
+      else downstreamDepth = depth;
+      applyHighlight();
+      if (visibleIds) fit();
+    });
+  }
 
   const search = $('search');
   search.addEventListener('input', () => {

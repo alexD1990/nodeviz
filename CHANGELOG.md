@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- **Hide unrelated models.** Show only the selected model and its lineage. Search can still select hidden models.
+- **Upstream and downstream depth.** Set each direction independently: `0` excludes it, `1` includes direct neighbors, and an empty field includes all levels. Depth limits also apply to highlighting.
+- **Rearrange on update.** Enabled by default, this option arranges only visible models and connections when the selection, depth, graph, or flow direction changes. Disable it to restore saved positions.
+- Fit-to-view and the minimap follow the visible graph. The canvas remembers filter, depth, and rearrangement preferences.
+- Column tracing temporarily pauses lineage filtering and automatic rearrangement so the complete trace remains visible.
+- Fixed invisible connections in straight horizontal or vertical layouts.
+- Removed a machine-specific project path from the F5 development configuration.
+
 ## 0.3.1 (preview)
 
 - **Settings are now `nodeviz.*`** (were `dbtFlow.*`), and the layout file is `.nodeviz.json` (was `.dbtflow.json`). Old settings still work when the new one is not set, and NodeViz says so once. The old layout file is read and moved to `.nodeviz.json` the first time you change something on the canvas. Command ids are `nodeviz.*` too; update any keyboard shortcuts you made for them.

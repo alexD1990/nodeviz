@@ -827,3 +827,39 @@ button.primary svg {
     opacity: 0;
   }
 }
+/* Lineage controls wrap independently of the project/search bar in narrow panels. */
+.lineage-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--glass-line);
+  background: var(--base);
+}
+.lineage-controls label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.lineage-controls input[type="number"] {
+  width: 64px;
+  padding: 4px 6px;
+  border: 1px solid var(--vscode-input-border, var(--line));
+  border-radius: 4px;
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  font: inherit;
+}
+.lineage-controls input::placeholder {
+  color: var(--vscode-input-placeholderForeground, var(--fg));
+}
+.lineage-controls input[type="checkbox"] {
+  accent-color: var(--focus);
+  margin: 0;
+}
+#lineage-status {
+  color: var(--muted);
+  font-size: 12px;
+}

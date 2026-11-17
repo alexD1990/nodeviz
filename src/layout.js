@@ -144,4 +144,8 @@ function placeNew(id, edges, positions, direction = 'LR') {
 
 const avg = (xs) => xs.reduce((a, b) => a + b, 0) / xs.length;
 
-module.exports = { layeredLayout, placeNew, NODE_W, NODE_H, COL_W, ROW_H };
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = { layeredLayout, placeNew, NODE_W, NODE_H, COL_W, ROW_H };
+} else {
+  window.NodeVizLayout = { layeredLayout };
+}
